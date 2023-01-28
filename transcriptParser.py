@@ -1,5 +1,8 @@
+import os
 import re
 
+import pandas as pd
+import pypandoc
 
 class Parser:
 
@@ -64,7 +67,38 @@ class TranscriptAnalyzer:
             else:
                 counts[item] = 1
         return counts
-        
-ta = TranscriptAnalyzer()
-print(ta.getParticipationCounts("sampleTranscript.txt", 
-                                r'\d?\d:\d\d:\d\d [ap]m - ', r':\n'))
+
+class RawFolderParser:
+
+    def docToTxt(self, filename, fileFolder, outDir):
+        out = os.path.join(outDir, filename[:-5] + ".txt")#skips the docx
+        output = pypandoc.convert_file(os.path.join(fileFolder,filename), 
+                'plain', outputfile=out)
+        assert (output == "")
+
+    def convertFolder(self, folderName):
+        outFolder = folderName + "_txt"
+        if not os.path.exists(outFolder):
+            os.mkdir(outFolder)
+        files = os.listdir(folderName)
+        for filename in files:
+            if re.match(".*\.docx$", filename):
+                self.docToTxt(filename, folderName, outFolder)
+        return outFolder
+
+ROOT = "Meet Transcript"
+def main():
+    ta = TranscriptAnalyzer()
+    docConverter = RawFolderParser()
+    txtFolder = docConverter.convertFolder(ROOT)
+    files = os.listdir(txtFolder)
+    counts = []
+    for filename in files:
+        if re.match(".*\.txt$", filename):
+            counts.append(ta.getParticipationCounts(os.path.join(txtFolder, filename),
+                r'\d?\d:\d\d:\d\d [ap]m - ', r':\n'))
+    df = pd.DataFrame(counts)
+    df.to_excel("out.xlsx")
+
+if __name__ == "__main__":
+    main()
